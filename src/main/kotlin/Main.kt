@@ -1,7 +1,5 @@
 import com.google.gson.GsonBuilder
 import core.AbstractRowMapperFactory
-import core.Http
-import core.jdbi
 import io.github.cdimascio.dotenv.Dotenv
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.get
@@ -14,8 +12,6 @@ import org.jdbi.v3.core.Jdbi
 import java.lang.reflect.Type
 import java.nio.file.Path
 import org.jdbi.v3.core.statement.SqlStatements
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 
 
 fun main() {
@@ -25,7 +21,6 @@ fun main() {
     val DB_USER = dotenv["DB_USER"]
     val DB_PASS = dotenv["DB_PASS"]
     val DB_URL = dotenv["DB_URL"]
-    val DB_USER_PASS_URL = dotenv["DB_USER_PASS_URL"]
     //STATIC FILES
     val baseDirectory = when (mode) {
         "DEV" -> Path.of(System.getProperty("user.dir"))
@@ -53,17 +48,6 @@ fun main() {
         .dataSource(DB_URL, DB_USER, DB_PASS)
         .load()
     flyway.migrate()
-    //DATABASE
-    if (DB_USER.isNullOrEmpty()) {
-        throw RuntimeException("DB USER not set!")
-    }
-    val conn = Jdbi.create(DB_USER_PASS_URL)
-    conn
-        .registerRowMapper(AbstractRowMapperFactory())
-        .getConfig(SqlStatements::class.java)
-        .addExceptionHandler { ex, _ ->
-            throw RuntimeException(ex.message)
-        }
     //JSON MAPPER
     val gson = GsonBuilder().create()
     val jsonMapper = object : JsonMapper {
@@ -84,7 +68,6 @@ fun main() {
     )
 
     Javalin.create{ config ->
-        config.appData(jdbi(), conn)
         config.concurrency.useVirtualThreads = true
         config.jsonMapper(jsonMapper)
         config.startup.showJavalinBanner = false
@@ -121,17 +104,7 @@ fun main() {
 
         config.routes.apiBuilder {
             path("/") {
-                get("/users") { ctx ->
-                    //DATABASE CONNECTION ACCESS
-                    val jdbi = ctx.appData(jdbi())
-                    val result = jdbi.withHandle<Unit, RuntimeException> { _ ->
-                        Http.client.send(
-                            HttpRequest.newBuilder().GET().build(),
-                            HttpResponse.BodyHandlers.ofString()
-                        )
-                    }
-                    ctx.json(result)
-                }
+                get("/users") {}
             }
         }
     }.start(2137)
