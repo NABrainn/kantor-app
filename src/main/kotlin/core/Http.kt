@@ -6,6 +6,6 @@ import java.util.concurrent.Executors
 object Http {
     val client: HttpClient = HttpClient
         .newBuilder()
-        .executor { executor -> Executors.newVirtualThreadPerTaskExecutor().execute(executor) }
+        .executor(Executors.newVirtualThreadPerTaskExecutor())
         .build()
 }
