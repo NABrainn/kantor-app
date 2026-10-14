@@ -24,7 +24,8 @@ fun main(args: Array<String>) {
     val dbUser = dotenv["POSTGRES_USER"] ?: throw IllegalArgumentException("Postgres user must be provided")
     val dbPass = dotenv["POSTGRES_PASSWORD"] ?: throw IllegalArgumentException("Postgres password must be provided")
     val dbHost = dotenv["POSTGRES_HOST"] ?: throw IllegalArgumentException("Postgres host must be provided")
-    DB.init(dbHost, dbUser, dbUser)
+    val dbName = dotenv["POSTGRES_DB"] ?: throw IllegalArgumentException("Postgres DB name must be provided")
+    DB.init(dbHost, dbName, dbUser, dbUser)
     //STATIC FILES
     val baseDirectory = when (mode) {
         "DEV" -> Path.of(System.getProperty("user.dir"))
@@ -49,7 +50,7 @@ fun main(args: Array<String>) {
     //FLYWAY
     val flyway = Flyway
         .configure()
-        .dataSource(dbHost, dbUser, dbPass)
+        .dataSource("jdbc:postgresql://$dbHost/$dbName", dbUser, dbPass)
         .load()
     flyway.migrate()
     //JSON MAPPER
