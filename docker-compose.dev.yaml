@@ -1,0 +1,21 @@
+services:
+  postgres:
+    env_file:
+      - .env.dev
+    image: postgres
+    container_name: postgres
+    restart: always #restart the container when computer is shut off
+    ports:
+      - "127.0.0.1:1000:5432"
+    shm_size: 256mb #memory shared between containers
+    volumes:
+      - pgdata:/var/lib/postgresql/data #where the postgres data is persisted
+  pgadmin:
+    env_file:
+      - .env.dev
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    ports:
+      - "1100:80"
+volumes:
+  pgdata:
