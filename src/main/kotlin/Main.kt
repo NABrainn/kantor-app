@@ -1,5 +1,4 @@
 import com.google.gson.GsonBuilder
-import core.AbstractRowMapperFactory
 import io.github.cdimascio.dotenv.Dotenv
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.get
@@ -8,10 +7,8 @@ import io.javalin.http.staticfiles.Location
 import io.javalin.json.JsonMapper
 import io.javalin.util.JavalinLogger
 import org.flywaydb.core.Flyway
-import org.jdbi.v3.core.Jdbi
 import java.lang.reflect.Type
 import java.nio.file.Path
-import org.jdbi.v3.core.statement.SqlStatements
 
 
 fun main() {
@@ -57,7 +54,7 @@ fun main() {
         override fun toJsonString(obj: Any, type: Type) =
             gson.toJson(obj)
     }
-    //WHITELIST
+    //AUTH REQUIRED PATHS
     val protectedPaths = listOf("/")
     //ERROR 500 EXCEPTIONS
     val serverErrorExceptions = listOf(
