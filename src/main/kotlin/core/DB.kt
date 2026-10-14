@@ -2,29 +2,29 @@ package core
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.github.cdimascio.dotenv.Dotenv
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.statement.SqlStatements
+import kotlin.text.get
 
 object DB {
-    private val dotenv = Dotenv.load()
 
-    private val dataSource: HikariDataSource by lazy {
+    private lateinit var conn: Jdbi
+
+    fun init(host: String, user: String, password: String) {
         val config = HikariConfig().apply {
-            jdbcUrl = dotenv["DB_USER_PASS_URL"]
+            jdbcUrl = "jdbc:postgresql://$host:$user:$password"
             maximumPoolSize = 10
             minimumIdle = 2
             isAutoCommit = false
         }
-        HikariDataSource(config)
-    }
-
-    private val conn: Jdbi = Jdbi.create(dataSource).apply {
-        registerRowMapper(AbstractRowMapperFactory())
-        getConfig(SqlStatements::class.java)
-            .addExceptionHandler { ex, _ ->
-                throw RuntimeException(ex.message)
-            }
+        val dataSource = HikariDataSource(config)
+        this.conn = Jdbi.create(dataSource).apply {
+            registerRowMapper(AbstractRowMapperFactory())
+            getConfig(SqlStatements::class.java)
+                .addExceptionHandler { ex, _ ->
+                    throw RuntimeException(ex.message)
+                }
+        }
     }
 
     fun jdbi(): Jdbi {

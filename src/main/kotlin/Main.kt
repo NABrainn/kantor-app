@@ -1,4 +1,5 @@
 import com.google.gson.GsonBuilder
+import core.DB
 import io.github.cdimascio.dotenv.Dotenv
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.get
@@ -11,13 +12,19 @@ import java.lang.reflect.Type
 import java.nio.file.Path
 
 
-fun main() {
+fun main(args: Array<String>) {
     //ENV
-    val dotenv = Dotenv.load()
+    val fileNameEntry = args.find { it.contains("--env-file") }
+    val fileName = fileNameEntry?.split("=")?.last() ?: ".env.dev"
+    val dotenv = Dotenv
+        .configure()
+        .filename(fileName)
+        .load()
     val mode = dotenv["MODE"]
-    val DB_USER = dotenv["DB_USER"]
-    val DB_PASS = dotenv["DB_PASS"]
-    val DB_URL = dotenv["DB_URL"]
+    val dbUser = dotenv["POSTGRES_USER"] ?: throw IllegalArgumentException("Postgres user must be provided")
+    val dbPass = dotenv["POSTGRES_PASSWORD"] ?: throw IllegalArgumentException("Postgres password must be provided")
+    val dbHost = dotenv["POSTGRES_HOST"] ?: throw IllegalArgumentException("Postgres host must be provided")
+    DB.init(dbHost, dbUser, dbUser)
     //STATIC FILES
     val baseDirectory = when (mode) {
         "DEV" -> Path.of(System.getProperty("user.dir"))
@@ -42,7 +49,7 @@ fun main() {
     //FLYWAY
     val flyway = Flyway
         .configure()
-        .dataSource(DB_URL, DB_USER, DB_PASS)
+        .dataSource(dbHost, dbUser, dbPass)
         .load()
     flyway.migrate()
     //JSON MAPPER
