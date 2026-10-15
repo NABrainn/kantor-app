@@ -51,6 +51,8 @@ fun main(args: Array<String>) {
     val flyway = Flyway
         .configure()
         .dataSource("jdbc:postgresql://$dbHost/$dbName", dbUser, dbPass)
+        .baselineOnMigrate(true)
+        .baselineVersion("0")
         .load()
     flyway.migrate()
     //JSON MAPPER
