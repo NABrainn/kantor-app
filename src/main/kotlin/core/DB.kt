@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.statement.SqlStatements
+import org.jdbi.v3.core.kotlin.KotlinPlugin
 
 object DB {
 
@@ -19,7 +20,7 @@ object DB {
         }
         val dataSource = HikariDataSource(config)
         this.conn = Jdbi.create(dataSource).apply {
-            registerRowMapper(AbstractRowMapperFactory())
+            installPlugin(KotlinPlugin())
             getConfig(SqlStatements::class.java)
                 .addExceptionHandler { ex, _ ->
                     throw RuntimeException(ex.message)
