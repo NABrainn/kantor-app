@@ -1,0 +1,3173 @@
+{
+  "info": {
+    "name": "Kantor walut – backend",
+    "description": "Scenariusz testowy backendu kantoru. Uruchom całą kolekcję (Run collection) od góry – kolejne żądania korzystają z wyników poprzednich (token, wycena). Każde uruchomienie rejestruje nowego użytkownika.\n\nKwoty są w groszach: 10000 = 100,00.\n\nFoldery 1a i 6 sprawdzają bezpieczeństwo: sfałszowane tokeny są odrzucane, a użytkownik widzi tylko własne dane.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:2137"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": "tajnehaslo1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "quotedPlnAmount",
+      "value": ""
+    },
+    {
+      "key": "emailB",
+      "value": ""
+    },
+    {
+      "key": "tokenB",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Uwierzytelnianie",
+      "item": [
+        {
+          "name": "Rejestracja",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"email\", `test_${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const user = pm.response.json();",
+                  "pm.test(\"Zwraca id i e-mail\", () => {",
+                  "    pm.expect(user.id).to.be.a(\"number\");",
+                  "    pm.expect(user.email).to.eql(pm.collectionVariables.get(\"email\"));",
+                  "});",
+                  "pm.test(\"Nie zwraca hasła\", () => pm.expect(user).to.not.have.property(\"passwordHash\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": 1,\n  \"email\": \"jan.kowalski@example.com\",\n  \"createdAt\": \"2026-11-25T17:36:28.046855Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Rejestracja – ten sam e-mail → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "409 Conflict – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Konto z tym adresem e-mail już istnieje\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Rejestracja – złe dane → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"to-nie-jest-email\",\n  \"password\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"to-nie-jest-email\",\n  \"password\": \"123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Nieprawidłowy format adresu e-mail\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Rejestracja – za długie hasło (> 72 bajty) → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"dlugie@example.com\",\n  \"password\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"dlugie@example.com\",\n  \"password\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Hasło jest za długie\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logowanie – złe hasło → 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"zlehaslo123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Jednolity komunikat\", () => pm.expect(pm.response.json().error).to.eql(\"Nieprawidłowy e-mail lub hasło\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "401 Unauthorized – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"zlehaslo123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Nieprawidłowy e-mail lub hasło\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logowanie – nieistniejący e-mail → 401, ten sam komunikat",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Ten sam komunikat co przy złym haśle (FR-S-02)\", () => pm.expect(pm.response.json().error).to.eql(\"Nieprawidłowy e-mail lub hasło\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nie_ma_takiego_konta@example.com\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"nie_ma_takiego_konta@example.com\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Nieprawidłowy e-mail lub hasło\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logowanie",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Zwraca token Bearer\", () => {",
+                  "    pm.expect(body.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(body.tokenType).to.eql(\"Bearer\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token\", body.accessToken);",
+                  "pm.test(\"Token wygasa (exp > iat)\", () => {",
+                  "    const payload = JSON.parse(CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(body.accessToken.split(\".\")[1].replace(/-/g, \"+\").replace(/_/g, \"/\"))));",
+                  "    pm.expect(payload.exp).to.be.above(payload.iat);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrYW50b3ItYmFja2VuZCIsInN1YiI6IjEiLCJpYXQiOjE3OTU2MjgxODgsImV4cCI6MTc5NTYzMTc4OH0.przykladowy-podpis\",\n  \"tokenType\": \"Bearer\",\n  \"expiresIn\": 3600\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1a. Bezpieczeństwo tokenu (UC-03, FR-S-03)",
+      "item": [
+        {
+          "name": "Token niepoprawny → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "to.nie.jest.token",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "to.nie.jest.token",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Sesja wygasła lub token jest nieprawidłowy – zaloguj się ponownie\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Token bez podpisu (alg none) → 401",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b64url = (obj) => CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)))",
+                  "    .replace(/=+$/, \"\").replace(/\\+/g, \"-\").replace(/\\//g, \"_\");",
+                  "pm.variables.set(\"forgedToken\", b64url({ alg: \"none\", typ: \"JWT\" }) + \".\" + b64url({ iss: \"kantor-backend\", sub: \"1\" }) + \".\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{forgedToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{forgedToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Sesja wygasła lub token jest nieprawidłowy – zaloguj się ponownie\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Podmieniony użytkownik w tokenie (sub) → 401",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b64url = (obj) => CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)))",
+                  "    .replace(/=+$/, \"\").replace(/\\+/g, \"-\").replace(/\\//g, \"_\");",
+                  "const [header, , signature] = pm.collectionVariables.get(\"token\").split(\".\");",
+                  "pm.variables.set(\"forgedToken\", header + \".\" + b64url({ iss: \"kantor-backend\", sub: \"1\", exp: 9999999999 }) + \".\" + signature);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{forgedToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{forgedToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Sesja wygasła lub token jest nieprawidłowy – zaloguj się ponownie\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Kursy",
+      "item": [
+        {
+          "name": "Kursy aktualne (tabela C)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rates"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const table = pm.response.json();",
+                  "pm.test(\"Tabela C z kursami\", () => {",
+                  "    pm.expect(table.tableNo).to.include(\"/C/NBP/\");",
+                  "    pm.expect(table.rates.length).to.be.above(0);",
+                  "});",
+                  "pm.test(\"USD ma kurs kupna i sprzedaży, ask > bid\", () => {",
+                  "    const usd = table.rates.find(r => r.code === \"USD\");",
+                  "    pm.expect(usd).to.exist;",
+                  "    pm.expect(parseFloat(usd.ask)).to.be.above(parseFloat(usd.bid));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/rates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "rates"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"tableNo\": \"229/C/NBP/2026\",\n  \"tradingDate\": \"2026-11-24\",\n  \"effectiveDate\": \"2026-11-25\",\n  \"fetchedAt\": \"2026-11-25T16:50:09.294302Z\",\n  \"rates\": [\n    {\n      \"code\": \"AUD\",\n      \"currency\": \"dolar australijski\",\n      \"bid\": \"2.6753\",\n      \"ask\": \"2.7293\"\n    },\n    {\n      \"code\": \"CAD\",\n      \"currency\": \"dolar kanadyjski\",\n      \"bid\": \"2.8130\",\n      \"ask\": \"2.8698\"\n    },\n    {\n      \"code\": \"CHF\",\n      \"currency\": \"frank szwajcarski\",\n      \"bid\": \"4.8090\",\n      \"ask\": \"4.9062\"\n    },\n    {\n      \"code\": \"CZK\",\n      \"currency\": \"korona czeska\",\n      \"bid\": \"0.1807\",\n      \"ask\": \"0.1843\"\n    },\n    {\n      \"code\": \"DKK\",\n      \"currency\": \"korona duńska\",\n      \"bid\": \"0.5902\",\n      \"ask\": \"0.6022\"\n    },\n    {\n      \"code\": \"EUR\",\n      \"currency\": \"euro\",\n      \"bid\": \"4.4113\",\n      \"ask\": \"4.5005\"\n    },\n    {\n      \"code\": \"GBP\",\n      \"currency\": \"funt szterling\",\n      \"bid\": \"5.2714\",\n      \"ask\": \"5.3778\"\n    },\n    {\n      \"code\": \"HUF\",\n      \"currency\": \"forint (Węgry)\",\n      \"bid\": \"0.011954\",\n      \"ask\": \"0.012196\"\n    },\n    {\n      \"code\": \"JPY\",\n      \"currency\": \"jen (Japonia)\",\n      \"bid\": \"0.025244\",\n      \"ask\": \"0.025754\"\n    },\n    {\n      \"code\": \"NOK\",\n      \"currency\": \"korona norweska\",\n      \"bid\": \"0.4113\",\n      \"ask\": \"0.4197\"\n    },\n    {\n      \"code\": \"SEK\",\n      \"currency\": \"korona szwedzka\",\n      \"bid\": \"0.3935\",\n      \"ask\": \"0.4015\"\n    },\n    {\n      \"code\": \"USD\",\n      \"currency\": \"dolar amerykański\",\n      \"bid\": \"4.0198\",\n      \"ask\": \"4.1010\"\n    },\n    {\n      \"code\": \"XDR\",\n      \"currency\": \"SDR (MFW)\",\n      \"bid\": \"5.4167\",\n      \"ask\": \"5.5261\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "503 Service Unavailable – API NBP nie odpowiada i w bazie nie ma żadnej tabeli",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/rates",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "rates"
+                  ]
+                }
+              },
+              "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Brak połączenia z API NBP\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Kursy archiwalne EUR – ostatnie 14 dni",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rates/EUR/history?from={{historyFrom}}&to={{historyTo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rates",
+                "EUR",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{historyFrom}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{historyTo}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const day = (d) => d.toISOString().slice(0, 10);",
+                  "const today = new Date();",
+                  "pm.variables.set(\"historyTo\", day(today));",
+                  "pm.variables.set(\"historyFrom\", day(new Date(today.getTime() - 14 * 24 * 3600 * 1000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const history = pm.response.json();",
+                  "pm.test(\"Lista kursów z kolejnych dni\", () => {",
+                  "    pm.expect(history).to.be.an(\"array\").that.is.not.empty;",
+                  "    pm.expect(history[0]).to.have.keys(\"effectiveDate\", \"tableNo\", \"bid\", \"ask\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/rates/EUR/history?from={{historyFrom}}&to={{historyTo}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "rates",
+                    "EUR",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "{{historyFrom}}"
+                    },
+                    {
+                      "key": "to",
+                      "value": "{{historyTo}}"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"effectiveDate\": \"2026-11-12\",\n    \"tableNo\": \"220/C/NBP/2026\",\n    \"bid\": \"4.3514\",\n    \"ask\": \"4.4394\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-13\",\n    \"tableNo\": \"221/C/NBP/2026\",\n    \"bid\": \"4.3615\",\n    \"ask\": \"4.4497\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-16\",\n    \"tableNo\": \"222/C/NBP/2026\",\n    \"bid\": \"4.3623\",\n    \"ask\": \"4.4505\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-17\",\n    \"tableNo\": \"223/C/NBP/2026\",\n    \"bid\": \"4.3535\",\n    \"ask\": \"4.4415\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-18\",\n    \"tableNo\": \"224/C/NBP/2026\",\n    \"bid\": \"4.3572\",\n    \"ask\": \"4.4452\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-19\",\n    \"tableNo\": \"225/C/NBP/2026\",\n    \"bid\": \"4.3636\",\n    \"ask\": \"4.4518\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-20\",\n    \"tableNo\": \"226/C/NBP/2026\",\n    \"bid\": \"4.3798\",\n    \"ask\": \"4.4682\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-23\",\n    \"tableNo\": \"227/C/NBP/2026\",\n    \"bid\": \"4.4052\",\n    \"ask\": \"4.4942\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-24\",\n    \"tableNo\": \"228/C/NBP/2026\",\n    \"bid\": \"4.4006\",\n    \"ask\": \"4.4896\"\n  },\n  {\n    \"effectiveDate\": \"2026-11-25\",\n    \"tableNo\": \"229/C/NBP/2026\",\n    \"bid\": \"4.4113\",\n    \"ask\": \"4.5005\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Kursy archiwalne – zakres > 93 dni → 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rates/EUR/history?from=2025-01-01&to=2025-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rates",
+                "EUR",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2025-01-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2025-12-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/rates/EUR/history?from=2025-01-01&to=2025-12-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "rates",
+                    "EUR",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "2025-01-01"
+                    },
+                    {
+                      "key": "to",
+                      "value": "2025-12-31"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Zakres dat może obejmować najwyżej 93 dni\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Kursy archiwalne – data z przyszłości → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rates/EUR/history?from=2026-01-01&to=2999-01-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rates",
+                "EUR",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2999-01-01"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/rates/EUR/history?from=2026-01-01&to=2999-01-01",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "rates",
+                    "EUR",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "2026-01-01"
+                    },
+                    {
+                      "key": "to",
+                      "value": "2999-01-01"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Data końcowa nie może być z przyszłości\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Kursy archiwalne – zły format daty → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rates/EUR/history?from=01-01-2026&to=2026-01-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rates",
+                "EUR",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "01-01-2026"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-01-31"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/rates/EUR/history?from=01-01-2026&to=2026-01-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "rates",
+                    "EUR",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "01-01-2026"
+                    },
+                    {
+                      "key": "to",
+                      "value": "2026-01-31"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Nieprawidłowa data w parametrze from – użyj formatu RRRR-MM-DD\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Portfel",
+      "item": [
+        {
+          "name": "Portfel bez tokenu → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "401 Unauthorized – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Sesja wygasła lub token jest nieprawidłowy – zaloguj się ponownie\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Portfel nowego konta – 0 PLN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const wallet = pm.response.json();",
+                  "pm.test(\"Saldo 0 PLN\", () => {",
+                  "    pm.expect(wallet.balances).to.have.lengthOf(1);",
+                  "    pm.expect(wallet.balances[0]).to.include({ currency: \"PLN\", amount: 0 });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"userId\": 1,\n  \"balances\": [\n    {\n      \"currency\": \"PLN\",\n      \"amount\": 0,\n      \"updatedAt\": \"2026-11-25T17:36:28.046855Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Kupno przy saldzie 0 PLN → 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/buy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "buy"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 10000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Komunikat o braku środków\", () => pm.expect(pm.response.json().error).to.include(\"Brak wystarczających środków\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "422 Unprocessable Entity – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/buy",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "buy"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 10000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Brak wystarczających środków w walucie PLN\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Zasilenie – kwota ujemna → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet/top-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet",
+                "top-up"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": -100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet/top-up",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet",
+                    "top-up"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": -100\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Kwota musi być większa od zera\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Zasilenie – kwota ułamkowa (nie w groszach) → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet/top-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet",
+                "top-up"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet/top-up",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet",
+                    "top-up"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 10.5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Nieprawidłowy lub pusty JSON w treści żądania (kwoty podaje się jako liczby całkowite w groszach)\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Zasilenie – kwota jako tekst (\"100\") → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet/top-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet",
+                "top-up"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"100\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet/top-up",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet",
+                    "top-up"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": \"100\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Nieprawidłowy lub pusty JSON w treści żądania (kwoty podaje się jako liczby całkowite w groszach)\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Zasilenie konta 1000,00 PLN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet/top-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet",
+                "top-up"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const result = pm.response.json();",
+                  "pm.test(\"Transakcja TOP_UP bez kursu\", () => {",
+                  "    pm.expect(result.transaction).to.include({ type: \"TOP_UP\", toCurrency: \"PLN\", toAmount: 100000 });",
+                  "    pm.expect(result.transaction.rate).to.be.null;",
+                  "});",
+                  "pm.test(\"Saldo 1000,00 PLN\", () => {",
+                  "    const pln = result.wallet.balances.find(b => b.currency === \"PLN\");",
+                  "    pm.expect(pln.amount).to.eql(100000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet/top-up",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet",
+                    "top-up"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 100000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"transaction\": {\n    \"id\": 1,\n    \"userId\": 1,\n    \"type\": \"TOP_UP\",\n    \"fromCurrency\": null,\n    \"toCurrency\": \"PLN\",\n    \"fromAmount\": null,\n    \"toAmount\": 100000,\n    \"rate\": null,\n    \"rateType\": null,\n    \"nbpTableNo\": null,\n    \"nbpEffectiveDate\": null,\n    \"createdAt\": \"2026-11-25T17:36:28.726983Z\"\n  },\n  \"wallet\": {\n    \"userId\": 1,\n    \"balances\": [\n      {\n        \"currency\": \"PLN\",\n        \"amount\": 100000,\n        \"updatedAt\": \"2026-11-25T17:36:28.726983Z\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Wymiana",
+      "item": [
+        {
+          "name": "Wycena kupna 100,00 USD",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/quote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "quote"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"BUY\",\n  \"currency\": \"USD\",\n  \"amount\": 10000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const quote = pm.response.json();",
+                  "pm.test(\"Kupno po kursie ASK\", () => pm.expect(quote.rateType).to.eql(\"ASK\"));",
+                  "pm.test(\"plnAmount = amount × kurs, zaokrąglone w górę\", () => {",
+                  "    const expected = Math.ceil(Math.round(10000 * parseFloat(quote.rate) * 1e6) / 1e6);",
+                  "    pm.expect(quote.plnAmount).to.eql(expected);",
+                  "});",
+                  "pm.collectionVariables.set(\"quotedPlnAmount\", quote.plnAmount);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/quote",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "quote"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"BUY\",\n  \"currency\": \"USD\",\n  \"amount\": 10000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"type\": \"BUY\",\n  \"currency\": \"USD\",\n  \"amount\": 10000,\n  \"rate\": \"4.1010\",\n  \"rateType\": \"ASK\",\n  \"plnAmount\": 41010,\n  \"tableNo\": \"229/C/NBP/2026\",\n  \"effectiveDate\": \"2026-11-25\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Wycena sprzedaży 100,00 USD (BID, w dół)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const quote = pm.response.json();",
+                  "pm.test(\"Sprzedaż po kursie BID\", () => pm.expect(quote.rateType).to.eql(\"BID\"));",
+                  "pm.test(\"plnAmount = amount × kurs, zaokrąglone w dół\", () => {",
+                  "    pm.expect(quote.plnAmount).to.eql(Math.floor(Math.round(10000 * parseFloat(quote.rate) * 1e6) / 1e6));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/quote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "quote"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"SELL\",\n  \"currency\": \"USD\",\n  \"amount\": 10000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/quote",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "quote"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SELL\",\n  \"currency\": \"USD\",\n  \"amount\": 10000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"type\": \"SELL\",\n  \"currency\": \"USD\",\n  \"amount\": 10000,\n  \"rate\": \"4.0198\",\n  \"rateType\": \"BID\",\n  \"plnAmount\": 40198,\n  \"tableNo\": \"229/C/NBP/2026\",\n  \"effectiveDate\": \"2026-11-25\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Kupno 100,00 USD (kurs, kwota i userId od klienta są ignorowane)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/buy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "buy"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 10000,\n  \"rate\": \"0.0001\",\n  \"plnAmount\": 1,\n  \"userId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const { transaction, wallet } = pm.response.json();",
+                  "const paid = Number(pm.collectionVariables.get(\"quotedPlnAmount\"));",
+                  "pm.test(\"Transakcja BUY PLN → USD z zapisanym kursem\", () => {",
+                  "    pm.expect(transaction).to.include({ type: \"BUY\", fromCurrency: \"PLN\", toCurrency: \"USD\", toAmount: 10000, rateType: \"ASK\" });",
+                  "    pm.expect(transaction.nbpTableNo).to.include(\"/C/NBP/\");",
+                  "});",
+                  "pm.test(\"Koszt zgodny z wyceną\", () => pm.expect(transaction.fromAmount).to.eql(paid));",
+                  "pm.test(\"Salda po kupnie\", () => {",
+                  "    pm.expect(wallet.balances.find(b => b.currency === \"PLN\").amount).to.eql(100000 - paid);",
+                  "    pm.expect(wallet.balances.find(b => b.currency === \"USD\").amount).to.eql(10000);",
+                  "});",
+                  "pm.test(\"Serwer nie przyjął kursu od klienta\", () => pm.expect(transaction.rate).to.not.eql(\"0.0001\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/buy",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "buy"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 10000,\n  \"rate\": \"0.0001\",\n  \"plnAmount\": 1,\n  \"userId\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"transaction\": {\n    \"id\": 2,\n    \"userId\": 1,\n    \"type\": \"BUY\",\n    \"fromCurrency\": \"PLN\",\n    \"toCurrency\": \"USD\",\n    \"fromAmount\": 41010,\n    \"toAmount\": 10000,\n    \"rate\": \"4.1010\",\n    \"rateType\": \"ASK\",\n    \"nbpTableNo\": \"229/C/NBP/2026\",\n    \"nbpEffectiveDate\": \"2026-11-25\",\n    \"createdAt\": \"2026-11-25T17:36:28.955322Z\"\n  },\n  \"wallet\": {\n    \"userId\": 1,\n    \"balances\": [\n      {\n        \"currency\": \"PLN\",\n        \"amount\": 58990,\n        \"updatedAt\": \"2026-11-25T17:36:28.955322Z\"\n      },\n      {\n        \"currency\": \"USD\",\n        \"amount\": 10000,\n        \"updatedAt\": \"2026-11-25T17:36:28.955322Z\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Sprzedaż 50,00 USD",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/sell",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "sell"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 5000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const { transaction, wallet } = pm.response.json();",
+                  "pm.test(\"Transakcja SELL USD → PLN po kursie BID\", () => {",
+                  "    pm.expect(transaction).to.include({ type: \"SELL\", fromCurrency: \"USD\", fromAmount: 5000, toCurrency: \"PLN\", rateType: \"BID\" });",
+                  "});",
+                  "pm.test(\"Kwota w PLN zaokrąglona w dół\", () => {",
+                  "    const expected = Math.floor(Math.round(5000 * parseFloat(transaction.rate) * 1e6) / 1e6);",
+                  "    pm.expect(transaction.toAmount).to.eql(expected);",
+                  "});",
+                  "pm.test(\"Zostało 50,00 USD\", () => pm.expect(wallet.balances.find(b => b.currency === \"USD\").amount).to.eql(5000));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/sell",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "sell"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 5000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"transaction\": {\n    \"id\": 3,\n    \"userId\": 1,\n    \"type\": \"SELL\",\n    \"fromCurrency\": \"USD\",\n    \"toCurrency\": \"PLN\",\n    \"fromAmount\": 5000,\n    \"toAmount\": 20099,\n    \"rate\": \"4.0198\",\n    \"rateType\": \"BID\",\n    \"nbpTableNo\": \"229/C/NBP/2026\",\n    \"nbpEffectiveDate\": \"2026-11-25\",\n    \"createdAt\": \"2026-11-25T17:36:28.984595Z\"\n  },\n  \"wallet\": {\n    \"userId\": 1,\n    \"balances\": [\n      {\n        \"currency\": \"PLN\",\n        \"amount\": 79089,\n        \"updatedAt\": \"2026-11-25T17:36:28.984595Z\"\n      },\n      {\n        \"currency\": \"USD\",\n        \"amount\": 5000,\n        \"updatedAt\": \"2026-11-25T17:36:28.984595Z\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Sprzedaż większej kwoty niż saldo → 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/sell",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "sell"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 999999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "422 Unprocessable Entity – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/sell",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "sell"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 999999\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Brak wystarczających środków w walucie USD\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Nieobsługiwana waluta → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/buy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "buy"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"XYZ\",\n  \"amount\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/buy",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "buy"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currency\": \"XYZ\",\n  \"amount\": 100\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Waluta XYZ nie występuje w tabeli kursów NBP\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Kupno PLN → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/buy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "buy"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"PLN\",\n  \"amount\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 Bad Request – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/buy",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "buy"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currency\": \"PLN\",\n  \"amount\": 100\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Wymiana dotyczy walut obcych – PLN jest walutą rozliczeniową\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Transakcje",
+      "item": [
+        {
+          "name": "Historia transakcji",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions?limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "pm.test(\"3 transakcje od najnowszej: SELL, BUY, TOP_UP\", () => {",
+                  "    pm.expect(list.map(t => t.type)).to.eql([\"SELL\", \"BUY\", \"TOP_UP\"]);",
+                  "});",
+                  "pm.test(\"Każda transakcja ma datę i czas\", () => list.forEach(t => pm.expect(t.createdAt).to.be.a(\"string\")));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/transactions?limit=100",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "100"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"id\": 3,\n    \"userId\": 1,\n    \"type\": \"SELL\",\n    \"fromCurrency\": \"USD\",\n    \"toCurrency\": \"PLN\",\n    \"fromAmount\": 5000,\n    \"toAmount\": 20099,\n    \"rate\": \"4.0198\",\n    \"rateType\": \"BID\",\n    \"nbpTableNo\": \"229/C/NBP/2026\",\n    \"nbpEffectiveDate\": \"2026-11-25\",\n    \"createdAt\": \"2026-11-25T17:36:28.984595Z\"\n  },\n  {\n    \"id\": 2,\n    \"userId\": 1,\n    \"type\": \"BUY\",\n    \"fromCurrency\": \"PLN\",\n    \"toCurrency\": \"USD\",\n    \"fromAmount\": 41010,\n    \"toAmount\": 10000,\n    \"rate\": \"4.1010\",\n    \"rateType\": \"ASK\",\n    \"nbpTableNo\": \"229/C/NBP/2026\",\n    \"nbpEffectiveDate\": \"2026-11-25\",\n    \"createdAt\": \"2026-11-25T17:36:28.955322Z\"\n  },\n  {\n    \"id\": 1,\n    \"userId\": 1,\n    \"type\": \"TOP_UP\",\n    \"fromCurrency\": null,\n    \"toCurrency\": \"PLN\",\n    \"fromAmount\": null,\n    \"toAmount\": 100000,\n    \"rate\": null,\n    \"rateType\": null,\n    \"nbpTableNo\": null,\n    \"nbpEffectiveDate\": null,\n    \"createdAt\": \"2026-11-25T17:36:28.726983Z\"\n  }\n]"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Izolacja danych użytkowników (FR-S-03)",
+      "item": [
+        {
+          "name": "Rejestracja drugiego użytkownika",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"emailB\", `test_b_${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "201 Created – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": 2,\n  \"email\": \"anna.nowak@example.com\",\n  \"createdAt\": \"2026-11-25T17:36:29.143887Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logowanie drugiego użytkownika",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenB\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrYW50b3ItYmFja2VuZCIsInN1YiI6IjEiLCJpYXQiOjE3OTU2MjgxODgsImV4cCI6MTc5NTYzMTc4OH0.przykladowy-podpis\",\n  \"tokenType\": \"Bearer\",\n  \"expiresIn\": 3600\n}"
+            }
+          ]
+        },
+        {
+          "name": "Portfel drugiego użytkownika – tylko jego 0 PLN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const wallet = pm.response.json();",
+                  "pm.test(\"Nie widzi sald pierwszego użytkownika\", () => {",
+                  "    pm.expect(wallet.balances).to.have.lengthOf(1);",
+                  "    pm.expect(wallet.balances[0]).to.include({ currency: \"PLN\", amount: 0 });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "wallet"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenB}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"userId\": 2,\n  \"balances\": [\n    {\n      \"currency\": \"PLN\",\n      \"amount\": 0,\n      \"updatedAt\": \"2026-11-25T17:36:29.143887Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Historia drugiego użytkownika – pusta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nie widzi transakcji pierwszego użytkownika\", () => pm.expect(pm.response.json()).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transactions"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK – przykład",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/transactions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transactions"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenB}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[]"
+            }
+          ]
+        },
+        {
+          "name": "Sprzedaż cudzych USD (userId w treści) → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Odpowiedź ma pole error\", () => pm.expect(pm.response.json()).to.have.property(\"error\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/exchange/sell",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "exchange",
+                "sell"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 100,\n  \"userId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "422 Unprocessable Entity – przykład",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/exchange/sell",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "exchange",
+                    "sell"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currency\": \"USD\",\n  \"amount\": 100,\n  \"userId\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenB}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Brak wystarczających środków w walucie USD\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

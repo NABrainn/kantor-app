@@ -1,0 +1,647 @@
+openapi: 3.0.3
+info:
+  title: Kantor walut – Web Service
+  version: 1.0.0
+  description: |
+    REST API mobilnego kantoru walut (Kotlin + Javalin + PostgreSQL). Kursy walut pochodzą z tabeli C API NBP.
+
+    **Kwoty** podaje się i zwraca w jednostkach groszowych (liczby całkowite): `10000` = 100,00 PLN albo 100,00 USD.
+    **Kursy** są zwracane jako tekst (np. `"3.9502"`), żeby klient nie tracił dokładności.
+    **Daty** w formacie ISO 8601.
+
+    Wszystkie endpointy poza `/api/auth/...` wymagają nagłówka `Authorization: Bearer <accessToken>`
+    (token zwraca `POST /api/auth/login`).
+
+    Zasady wymiany:
+    - kupno waluty po kursie sprzedaży NBP (ASK), sprzedaż po kursie kupna (BID),
+    - wymiana tylko w parach PLN ↔ waluta obca, zasilenie konta tylko w PLN,
+    - wynik zaokrąglany do grosza na korzyść kantoru (kupno w górę, sprzedaż w dół).
+
+    Każdy błąd ma postać `{"error": "komunikat po polsku"}`.
+servers:
+  - url: http://localhost:2137
+    description: Lokalnie / docker compose
+
+tags:
+  - name: Uwierzytelnianie
+    description: Rejestracja i logowanie (bez tokenu)
+  - name: Portfel
+    description: Salda użytkownika i zasilenie konta
+  - name: Kursy
+    description: Kursy aktualne i archiwalne z tabeli C NBP
+  - name: Wymiana
+    description: Wycena, kupno i sprzedaż walut
+  - name: Transakcje
+    description: Historia transakcji
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Uwierzytelnianie]
+      summary: Rejestracja konta (UC-01)
+      description: Tworzy konto i portfel z saldem 0 PLN. E-mail jest zapisywany małymi literami.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Konto utworzone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Konto z tym adresem e-mail już istnieje
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Konto z tym adresem e-mail już istnieje
+
+  /api/auth/login:
+    post:
+      tags: [Uwierzytelnianie]
+      summary: Logowanie (UC-02)
+      description: Zwraca token JWT. Przy błędnym e-mailu lub haśle komunikat jest zawsze taki sam.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Zalogowano
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Nieprawidłowy e-mail lub hasło
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Nieprawidłowy e-mail lub hasło
+
+  /api/wallet:
+    get:
+      tags: [Portfel]
+      summary: Portfel – salda we wszystkich walutach (UC-10)
+      description: Najpierw PLN, potem pozostałe waluty alfabetycznie.
+      responses:
+        '200':
+          description: Portfel użytkownika
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/wallet/top-up:
+    post:
+      tags: [Portfel]
+      summary: Zasilenie konta symulowanym przelewem (UC-04)
+      description: Zwiększa saldo PLN i zapisuje transakcję typu TOP_UP. Maksymalnie 1 000 000,00 PLN na raz.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopUpRequest'
+      responses:
+        '201':
+          description: Konto zasilone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/rates:
+    get:
+      tags: [Kursy]
+      summary: Aktualne kursy – tabela C NBP (UC-05)
+      description: |
+        Tabela jest trzymana w bazie i odświeżana z NBP, gdy nie pochodzi z dzisiaj (najwyżej raz na 15 minut).
+        Gdy NBP nie odpowiada, zwracana jest ostatnia zapisana tabela – jej data jest w polu `effectiveDate`.
+      responses:
+        '200':
+          description: Aktualna tabela kursów
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateTable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/NbpUnavailable'
+
+  /api/rates/{code}/history:
+    get:
+      tags: [Kursy]
+      summary: Kursy archiwalne waluty (UC-06)
+      description: Kursy z kolejnych dni roboczych. Zakres najwyżej 93 dni, od 2002-01-02, nie z przyszłości. Pusta lista, gdy w okresie nie było tabel (np. weekend).
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Kod waluty z tabeli C (wielkość liter bez znaczenia)
+          schema:
+            type: string
+            example: EUR
+        - name: from
+          in: query
+          required: true
+          description: Data początkowa (RRRR-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: '2026-10-27'
+        - name: to
+          in: query
+          required: true
+          description: Data końcowa (RRRR-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: '2026-11-05'
+      responses:
+        '200':
+          description: Kursy archiwalne
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoricalRate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/NbpUnavailable'
+
+  /api/exchange/quote:
+    post:
+      tags: [Wymiana]
+      summary: Wycena wymiany przed transakcją (FR-M-09)
+      description: Zwraca kurs i kwotę w PLN. Nic nie zapisuje w bazie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+      responses:
+        '200':
+          description: Wycena
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeQuote'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/NbpUnavailable'
+
+  /api/exchange/buy:
+    post:
+      tags: [Wymiana]
+      summary: Kupno waluty za PLN (UC-07)
+      description: Kurs ASK. Zmniejsza saldo PLN, zwiększa saldo waluty i zapisuje transakcję – wszystko albo nic.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRequest'
+      responses:
+        '201':
+          description: Waluta kupiona
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/InsufficientFunds'
+        '503':
+          $ref: '#/components/responses/NbpUnavailable'
+
+  /api/exchange/sell:
+    post:
+      tags: [Wymiana]
+      summary: Sprzedaż waluty za PLN (UC-08)
+      description: Kurs BID. Zmniejsza saldo waluty, zwiększa saldo PLN i zapisuje transakcję – wszystko albo nic.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRequest'
+      responses:
+        '201':
+          description: Waluta sprzedana
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/InsufficientFunds'
+        '503':
+          $ref: '#/components/responses/NbpUnavailable'
+
+  /api/transactions:
+    get:
+      tags: [Transakcje]
+      summary: Historia transakcji – od najnowszej (UC-11)
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maksymalna liczba transakcji (1–500)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        '200':
+          description: Lista transakcji
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Nieprawidłowe dane wejściowe
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Kwota musi być większa od zera
+    Unauthorized:
+      description: Brak, nieprawidłowy lub wygasły token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Sesja wygasła lub token jest nieprawidłowy – zaloguj się ponownie
+    InsufficientFunds:
+      description: Brak wystarczających środków (nic nie zostało zmienione)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Brak wystarczających środków w walucie PLN
+    NbpUnavailable:
+      description: API NBP nie odpowiada, a w bazie nie ma jeszcze żadnej tabeli kursów
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Brak połączenia z API NBP
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Brak wystarczających środków w walucie PLN
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: jan.kowalski@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Co najmniej 8 znaków
+          example: tajnehaslo1
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: jan.kowalski@example.com
+        password:
+          type: string
+          format: password
+          example: tajnehaslo1
+
+    TopUpRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 100000000
+          description: Kwota w groszach (100000 = 1000,00 PLN)
+          example: 100000
+
+    QuoteRequest:
+      type: object
+      required: [type, currency, amount]
+      properties:
+        type:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
+        currency:
+          type: string
+          description: Kod waluty obcej z tabeli C (nie PLN)
+          example: USD
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 100000000
+          description: Kwota waluty obcej w centach (10000 = 100,00 USD)
+          example: 10000
+
+    ExchangeRequest:
+      type: object
+      required: [currency, amount]
+      properties:
+        currency:
+          type: string
+          description: Kod waluty obcej z tabeli C (nie PLN)
+          example: USD
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 100000000
+          description: Kwota waluty obcej w centach (10000 = 100,00 USD)
+          example: 10000
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          example: jan.kowalski@example.com
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-05T15:23:55.835827Z'
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: Token JWT do nagłówka Authorization
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Czas ważności tokenu w sekundach
+          example: 3600
+
+    Balance:
+      type: object
+      properties:
+        currency:
+          type: string
+          example: PLN
+        amount:
+          type: integer
+          format: int64
+          description: Saldo w groszach
+          example: 60498
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-11-05T15:24:14.278142Z'
+
+    Wallet:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 1
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Balance'
+
+    Transaction:
+      type: object
+      description: Dla TOP_UP pola fromCurrency, fromAmount i dane kursu mają wartość null.
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 2
+        userId:
+          type: integer
+          example: 1
+        type:
+          type: string
+          enum: [TOP_UP, BUY, SELL]
+          example: BUY
+        fromCurrency:
+          type: string
+          nullable: true
+          example: PLN
+        toCurrency:
+          type: string
+          example: USD
+        fromAmount:
+          type: integer
+          format: int64
+          nullable: true
+          example: 39502
+        toAmount:
+          type: integer
+          format: int64
+          example: 10000
+        rate:
+          type: string
+          nullable: true
+          description: Kurs zastosowany w transakcji
+          example: '3.9502'
+        rateType:
+          type: string
+          enum: [BID, ASK]
+          nullable: true
+          example: ASK
+        nbpTableNo:
+          type: string
+          nullable: true
+          example: 216/C/NBP/2026
+        nbpEffectiveDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-11-05'
+        createdAt:
+          type: string
+          format: date-time
+          description: Czas serwera
+          example: '2026-11-05T15:24:14.278142Z'
+
+    OperationResult:
+      type: object
+      properties:
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+        wallet:
+          $ref: '#/components/schemas/Wallet'
+
+    Rate:
+      type: object
+      properties:
+        code:
+          type: string
+          example: USD
+        currency:
+          type: string
+          example: dolar amerykański
+        bid:
+          type: string
+          description: Kurs kupna (kantor kupuje od klienta)
+          example: '3.8720'
+        ask:
+          type: string
+          description: Kurs sprzedaży (kantor sprzedaje klientowi)
+          example: '3.9502'
+
+    RateTable:
+      type: object
+      properties:
+        tableNo:
+          type: string
+          example: 216/C/NBP/2026
+        tradingDate:
+          type: string
+          format: date
+          example: '2026-11-04'
+        effectiveDate:
+          type: string
+          format: date
+          example: '2026-11-05'
+        fetchedAt:
+          type: string
+          format: date-time
+          example: '2026-11-05T15:24:13.196953Z'
+        rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rate'
+
+    HistoricalRate:
+      type: object
+      properties:
+        effectiveDate:
+          type: string
+          format: date
+          example: '2026-10-27'
+        tableNo:
+          type: string
+          example: 209/C/NBP/2026
+        bid:
+          type: string
+          example: '4.3601'
+        ask:
+          type: string
+          example: '4.4481'
+
+    ExchangeQuote:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [BUY, SELL]
+          example: BUY
+        currency:
+          type: string
+          example: USD
+        amount:
+          type: integer
+          format: int64
+          description: Kwota waluty obcej w centach
+          example: 10000
+        rate:
+          type: string
+          example: '3.9502'
+        rateType:
+          type: string
+          enum: [BID, ASK]
+          example: ASK
+        plnAmount:
+          type: integer
+          format: int64
+          description: Kwota w PLN w groszach (do zapłaty przy BUY, do otrzymania przy SELL)
+          example: 39502
+        tableNo:
+          type: string
+          example: 216/C/NBP/2026
+        effectiveDate:
+          type: string
+          format: date
+          example: '2026-11-05'
