@@ -1,0 +1,8 @@
+.gradle
+.kotlin
+.idea
+build
+
+# Sekrety nie mogą trafić do obrazu – w kontenerze podajemy je przez env_file w docker-compose
+.env
+.env.*

@@ -1,0 +1,47 @@
+# Cały system: baza PostgreSQL + backend.
+# Uruchomienie: docker compose up --build   (wcześniej: cp .env.example .env.dev)
+name: kantor
+
+services:
+  backend:
+    container_name: kantor-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.dev
+    environment:
+      - SERVER_PORT=2137
+      - POSTGRES_HOST=postgres # nazwa serwisu bazy w sieci Dockera
+      - POSTGRES_PORT=5432
+    ports:
+      - "2137:2137"
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    container_name: kantor-postgres
+    image: postgres:18-alpine
+    env_file:
+      - .env.dev
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  pgdata:

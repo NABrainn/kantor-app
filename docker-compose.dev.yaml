@@ -1,3 +1,7 @@
+# Tylko baza danych (+ pgAdmin) do pracy lokalnej – backend uruchamiamy z IDE albo ./gradlew run.
+# Uruchomienie: docker compose -f docker-compose.dev.yaml up -d
+name: kantor-dev
+
 services:
   postgres: #this is host name used in pgadmin (it connects to the container)
     env_file:
@@ -6,7 +10,7 @@ services:
     container_name: postgres
     restart: always #restart the container when computer is shut off
     ports:
-      - "1000:5432"
+      - "127.0.0.1:1000:5432" # tylko z tego komputera, nie z całej sieci
     shm_size: 256mb #memory shared between containers
     volumes:
       - pgdata:/var/lib/postgresql #where the postgres data is persisted
@@ -17,6 +21,6 @@ services:
     container_name: pgadmin
     restart: always
     ports:
-      - "1100:80"
+      - "127.0.0.1:1100:80" # tylko z tego komputera, nie z całej sieci
 volumes:
   pgdata:
